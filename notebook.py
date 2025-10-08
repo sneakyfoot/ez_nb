@@ -1,6 +1,7 @@
 import os, sys, argparse, subprocess, re
 from datetime import date, timedelta
 from pathlib import Path
+from search import search_notebook
 
 notebook_dir = Path("~/notebook").expanduser()
 COMPLETED_TASK_PATTERN = re.compile(r"^\s*(?:[-+*]\s+)?\[[xX]\]\s")
@@ -82,6 +83,13 @@ def yearly():
     last_year = this_year.replace(year=this_year.year - 1)
     open_note("yearly", this_year, last_year, "%Y")
 
+def someday():
+    notebook_dir.mkdir(parents=True, exist_ok=True)
+    someday_note = notebook_dir / "someday.md"
+    if not someday_note.exists():
+        someday_note.touch()
+    subprocess.run(["nvim", str(someday_note)])
+
 
 def sync():
     try:
@@ -123,6 +131,22 @@ def main():
     group.add_argument("-d", "--daily", action="store_true", help="Open today's note")
     group.add_argument("-m", "--monthly", action="store_true", help="Open this month's note")
     group.add_argument("-y", "--yearly", action="store_true", help="Open this year's note")
+    group.add_argument("-s", "--someday", action="store_true", help="Open the someday note")
+    group.add_argument("-q", "--search", metavar="QUERY", help="Search notebook contents")
+    parser.add_argument(
+        "--search-scope",
+        choices=["root", "daily", "monthly", "yearly"],
+        nargs="+",
+        help="Limit search to specific sections",
+    )
+    parser.add_argument(
+        "--search-regex", action="store_true", help="Treat the search query as a regular expression"
+    )
+    parser.add_argument(
+        "--search-case-sensitive",
+        action="store_true",
+        help="Perform a case-sensitive search",
+    )
     parser.add_argument("--sync", action="store_true", help="Sync notebook changes with remote")
     args = parser.parse_args()
 
@@ -136,6 +160,22 @@ def main():
         opened = True
     elif args.yearly:
         yearly()
+        opened = True
+    elif args.someday:
+        someday()
+        opened = True
+    elif args.search:
+        result = search_notebook(
+            query=args.search,
+            root=notebook_dir,
+            scopes=args.search_scope,
+            regex=args.search_regex,
+            case_sensitive=args.search_case_sensitive,
+        )
+        if result.exit_code == 1:
+            print("No matches found.")
+        elif result.exit_code not in (0, 1):
+            print("Search failed.")
         opened = True
 
     if not opened and not args.sync:
