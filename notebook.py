@@ -1,8 +1,9 @@
-import os, sys, argparse, subprocess
+import os, sys, argparse, subprocess, re
 from datetime import date, timedelta
 from pathlib import Path
 
 notebook_dir = Path("~/notebook").expanduser()
+COMPLETED_TASK_PATTERN = re.compile(r"^\s*(?:[-+*]\s+)?\[[xX]\]\s")
 
 def note_header(note_type: str, current: date) -> str:
     if note_type == "daily":
@@ -26,7 +27,38 @@ def open_note(note_type: str, current: date, previous: date, fmt: str):
         return
 
     if note_previous.exists():
-        note_today.write_text(note_previous.read_text())
+        previous_content = note_previous.read_text()
+        lines = previous_content.splitlines()
+        cleaned_lines = []
+        header_skipped = False
+        skip_blank_after_header = False
+
+        for line in lines:
+            if not header_skipped and line.startswith("## "):
+                header_skipped = True
+                skip_blank_after_header = True
+                continue
+
+            if skip_blank_after_header and line.strip() == "":
+                skip_blank_after_header = False
+                continue
+
+            skip_blank_after_header = False
+
+            if COMPLETED_TASK_PATTERN.match(line):
+                continue
+
+            cleaned_lines.append(line)
+
+        while cleaned_lines and cleaned_lines[0].strip() == "":
+            cleaned_lines.pop(0)
+
+        filtered_content = "\n".join(cleaned_lines).rstrip()
+
+        content = note_header(note_type, current)
+        if filtered_content:
+            content += f"{filtered_content}\n"
+        note_today.write_text(content)
     else:
         note_today.write_text(note_header(note_type, current))
 
