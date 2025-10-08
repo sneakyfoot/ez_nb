@@ -1,5 +1,5 @@
 import os, sys, argparse, subprocess, re
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from search import search_notebook
 
@@ -71,20 +71,20 @@ def append_to_note(note_path: Path, content: str) -> bool:
         print("No content provided to append.", file=sys.stderr)
         return False
 
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    lines = content.splitlines()
-    formatted_lines = []
-    for idx, line in enumerate(lines):
-        prefix = f"{timestamp} " if idx == 0 else " " * (len(timestamp) + 1)
-        formatted_lines.append(f"{prefix}{line.rstrip()}")
-
-    entry = "\n".join(formatted_lines)
-
+    entry = content
     existing = note_path.read_text(encoding="utf-8") if note_path.exists() else ""
-    prefix_newline = "" if not existing or existing.endswith("\n") else "\n"
+
+    if not existing:
+        prefix = ""
+    elif existing.endswith("\n\n"):
+        prefix = ""
+    elif existing.endswith("\n"):
+        prefix = "\n"
+    else:
+        prefix = "\n\n"
 
     with note_path.open("a", encoding="utf-8") as handle:
-        handle.write(f"{prefix_newline}{entry}\n")
+        handle.write(f"{prefix}{entry}\n")
 
     return True
 
