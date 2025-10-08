@@ -1,5 +1,5 @@
 import os, sys, argparse, subprocess, re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from search import search_notebook
 
@@ -16,7 +16,7 @@ def note_header(note_type: str, current: date) -> str:
     return ""
 
 
-def open_note(note_type: str, current: date, previous: date, fmt: str):
+def prepare_note(note_type: str, current: date, previous: date, fmt: str) -> Path:
     note_dir = notebook_dir / note_type
     note_today = note_dir / f"{current.strftime(fmt)}.md"
     note_previous = note_dir / f"{previous.strftime(fmt)}.md"
@@ -24,8 +24,7 @@ def open_note(note_type: str, current: date, previous: date, fmt: str):
     note_dir.mkdir(parents=True, exist_ok=True)
 
     if note_today.exists():
-        subprocess.run(["nvim", str(note_today)])
-        return
+        return note_today
 
     if note_previous.exists():
         previous_content = note_previous.read_text()
@@ -63,32 +62,72 @@ def open_note(note_type: str, current: date, previous: date, fmt: str):
     else:
         note_today.write_text(note_header(note_type, current))
 
-    subprocess.run(["nvim", str(note_today)])
+    return note_today
+
+
+def append_to_note(note_path: Path, content: str) -> bool:
+    content = content.rstrip("\n")
+    if not content.strip():
+        print("No content provided to append.", file=sys.stderr)
+        return False
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    lines = content.splitlines()
+    formatted_lines = []
+    for idx, line in enumerate(lines):
+        prefix = f"{timestamp} " if idx == 0 else " " * (len(timestamp) + 1)
+        formatted_lines.append(f"{prefix}{line.rstrip()}")
+
+    entry = "\n".join(formatted_lines)
+
+    existing = note_path.read_text(encoding="utf-8") if note_path.exists() else ""
+    prefix_newline = "" if not existing or existing.endswith("\n") else "\n"
+
+    with note_path.open("a", encoding="utf-8") as handle:
+        handle.write(f"{prefix_newline}{entry}\n")
+
+    return True
+
+
+def open_editor(note_path: Path):
+    subprocess.run(["nvim", str(note_path)])
 
 
 def daily():
     today = date.today()
     yesterday = today - timedelta(days=1)
-    open_note("daily", today, yesterday, "%y-%m-%d")
+    note_path = prepare_note("daily", today, yesterday, "%y-%m-%d")
+    open_editor(note_path)
+    return note_path
 
 
 def monthly():
     today = date.today().replace(day=1)
     previous_month = (today - timedelta(days=1)).replace(day=1)
-    open_note("monthly", today, previous_month, "%y-%m")
+    note_path = prepare_note("monthly", today, previous_month, "%y-%m")
+    open_editor(note_path)
+    return note_path
 
 
 def yearly():
     this_year = date.today().replace(month=1, day=1)
     last_year = this_year.replace(year=this_year.year - 1)
-    open_note("yearly", this_year, last_year, "%Y")
+    note_path = prepare_note("yearly", this_year, last_year, "%Y")
+    open_editor(note_path)
+    return note_path
 
-def someday():
+def get_someday_note() -> Path:
     notebook_dir.mkdir(parents=True, exist_ok=True)
     someday_note = notebook_dir / "someday.md"
     if not someday_note.exists():
         someday_note.touch()
-    subprocess.run(["nvim", str(someday_note)])
+    return someday_note
+
+
+def someday():
+    note_path = get_someday_note()
+    open_editor(note_path)
+    return note_path
 
 
 def sync():
@@ -134,6 +173,12 @@ def main():
     group.add_argument("-s", "--someday", action="store_true", help="Open the someday note")
     group.add_argument("-q", "--search", metavar="QUERY", help="Search notebook contents")
     parser.add_argument(
+        "--append",
+        nargs="?",
+        const="",
+        help="Append text to the selected note instead of opening it",
+    )
+    parser.add_argument(
         "--search-scope",
         choices=["root", "daily", "monthly", "yearly"],
         nargs="+",
@@ -150,19 +195,59 @@ def main():
     parser.add_argument("--sync", action="store_true", help="Sync notebook changes with remote")
     args = parser.parse_args()
 
+    append_text = args.append
+    append_mode = append_text is not None
+
+    if append_mode and args.search:
+        parser.error("--append cannot be used together with --search")
+
+    if append_mode and not (args.daily or args.monthly or args.yearly or args.someday):
+        parser.error("--append requires one of --daily, --monthly, --yearly, or --someday")
+
+    if append_mode and append_text == "":
+        if sys.stdin.isatty():
+            print("Enter text to append (Ctrl-D to finish):", file=sys.stderr)
+        append_text = sys.stdin.read()
+
     opened = False
 
     if args.daily:
-        daily()
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+        note_path = prepare_note("daily", today, yesterday, "%y-%m-%d")
+        if append_mode:
+            if append_to_note(note_path, append_text or ""):
+                print(f"Appended entry to {note_path}")
+        else:
+            open_editor(note_path)
         opened = True
     elif args.monthly:
-        monthly()
+        today = date.today().replace(day=1)
+        previous_month = (today - timedelta(days=1)).replace(day=1)
+        note_path = prepare_note("monthly", today, previous_month, "%y-%m")
+        if append_mode:
+            if append_to_note(note_path, append_text or ""):
+                print(f"Appended entry to {note_path}")
+        else:
+            open_editor(note_path)
         opened = True
     elif args.yearly:
-        yearly()
+        this_year = date.today().replace(month=1, day=1)
+        last_year = this_year.replace(year=this_year.year - 1)
+        note_path = prepare_note("yearly", this_year, last_year, "%Y")
+        if append_mode:
+            if append_to_note(note_path, append_text or ""):
+                print(f"Appended entry to {note_path}")
+        else:
+            open_editor(note_path)
         opened = True
     elif args.someday:
-        someday()
+        note_path = get_someday_note()
+        if append_mode:
+            if append_to_note(note_path, append_text or ""):
+                print(f"Appended entry to {note_path}")
+        else:
+            open_editor(note_path)
         opened = True
     elif args.search:
         result = search_notebook(
