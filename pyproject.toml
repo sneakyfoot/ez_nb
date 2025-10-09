@@ -1,6 +1,6 @@
 [project]
 name = "notebook"
-version = "0.1.0"
+version = "0.1.1"
 description = "Notebook cli"
 readme = "README.md"
 requires-python = ">=3.14"
