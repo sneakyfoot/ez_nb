@@ -1,6 +1,7 @@
 import os, sys, argparse, subprocess, re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Optional
 from search import search_notebook
 
 notebook_dir = Path("~/notebook").expanduser()
@@ -26,8 +27,10 @@ def prepare_note(note_type: str, current: date, previous: date, fmt: str) -> Pat
     if note_today.exists():
         return note_today
 
-    if note_previous.exists():
-        previous_content = note_previous.read_text()
+    fallback_note = note_previous if note_previous.exists() else find_latest_note(note_dir, current, fmt, note_today)
+
+    if fallback_note and fallback_note.exists():
+        previous_content = fallback_note.read_text()
         lines = previous_content.splitlines()
         cleaned_lines = []
         header_skipped = False
@@ -63,6 +66,24 @@ def prepare_note(note_type: str, current: date, previous: date, fmt: str) -> Pat
         note_today.write_text(note_header(note_type, current))
 
     return note_today
+
+
+def find_latest_note(note_dir: Path, current: date, fmt: str, note_today: Path) -> Optional[Path]:
+    latest_path: Optional[Path] = None
+    latest_date: Optional[date] = None
+    for candidate in note_dir.glob("*.md"):
+        if candidate == note_today:
+            continue
+        try:
+            candidate_date = datetime.strptime(candidate.stem, fmt).date()
+        except ValueError:
+            continue
+        if candidate_date >= current:
+            continue
+        if latest_date is None or candidate_date > latest_date:
+            latest_date = candidate_date
+            latest_path = candidate
+    return latest_path
 
 
 def append_to_note(note_path: Path, content: str) -> bool:
