@@ -169,10 +169,10 @@ def get_someday_note(notebook_dir: Path) -> Path:
     return someday_note
 
 
-def collect_uncompleted_tasks(root: Path) -> List[Tuple[Path, int, str]]:
-    """Return a list of unchecked Markdown tasks inside ``root``."""
+def collect_uncompleted_tasks(paths: Iterable[Path]) -> List[Tuple[Path, int, str]]:
+    """Return a list of unchecked Markdown tasks inside the provided files."""
     tasks: List[Tuple[Path, int, str]] = []
-    for note_path in sorted(root.rglob("*.md")):
+    for note_path in paths:
         try:
             lines = note_path.read_text(encoding="utf-8").splitlines()
         except OSError:
@@ -182,11 +182,12 @@ def collect_uncompleted_tasks(root: Path) -> List[Tuple[Path, int, str]]:
                 continue
             if INCOMPLETE_TASK_PATTERN.match(line):
                 tasks.append((note_path, idx, line.strip()))
-    return tasks
+    return sorted(tasks, key=lambda item: (str(item[0]), item[1]))
 
 
 def list_uncompleted_tasks(root: Path) -> None:
-    tasks = collect_uncompleted_tasks(root)
+    note_paths = [path for _, path in resolve_current_notes(root)]
+    tasks = collect_uncompleted_tasks(note_paths)
     if not tasks:
         print("No uncompleted tasks found.")
         return

@@ -69,7 +69,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Perform a case-sensitive search.",
     )
     parser.add_argument("--sync", action="store_true", help="Sync notebook changes with remote.")
-    parser.add_argument("--tasks", action="store_true", help="List uncompleted tasks across notes.")
+    parser.add_argument(
+        "--tasks",
+        action="store_true",
+        help="List uncompleted tasks from the current daily, monthly, yearly, and someday notes.",
+    )
     parser.add_argument(
         "--current",
         action="store_true",
