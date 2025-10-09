@@ -6,6 +6,7 @@ from search import search_notebook
 
 notebook_dir = Path("~/notebook").expanduser()
 COMPLETED_TASK_PATTERN = re.compile(r"^\s*(?:[-+*]\s+)?\[[xX]\]\s")
+INCOMPLETE_TASK_PATTERN = re.compile(r"^\s*(?:[-+*]\s+)?\[\s\]\s*")
 
 def note_header(note_type: str, current: date) -> str:
     if note_type == "daily":
@@ -84,6 +85,75 @@ def find_latest_note(note_dir: Path, current: date, fmt: str, note_today: Path) 
             latest_date = candidate_date
             latest_path = candidate
     return latest_path
+
+
+def collect_uncompleted_tasks(root: Path):
+    tasks = []
+    for note_path in sorted(root.rglob("*.md")):
+        try:
+            lines = note_path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for idx, line in enumerate(lines, start=1):
+            if COMPLETED_TASK_PATTERN.match(line):
+                continue
+            if INCOMPLETE_TASK_PATTERN.match(line):
+                tasks.append((note_path, idx, line.strip()))
+    return tasks
+
+
+def list_uncompleted_tasks(root: Path):
+    tasks = collect_uncompleted_tasks(root)
+    if not tasks:
+        print("No uncompleted tasks found.")
+        return
+    for note_path, line_number, content in tasks:
+        try:
+            relative = note_path.relative_to(root)
+        except ValueError:
+            relative = note_path
+        print(f"{relative}:{line_number}: {content}")
+
+
+def resolve_current_notes():
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    daily_note = prepare_note("daily", today, yesterday, "%y-%m-%d")
+
+    first_of_month = today.replace(day=1)
+    previous_month = (first_of_month - timedelta(days=1)).replace(day=1)
+    monthly_note = prepare_note("monthly", first_of_month, previous_month, "%y-%m")
+
+    this_year = today.replace(month=1, day=1)
+    last_year = this_year.replace(year=this_year.year - 1)
+    yearly_note = prepare_note("yearly", this_year, last_year, "%Y")
+
+    someday_note = get_someday_note()
+
+    return [
+        ("daily", daily_note),
+        ("monthly", monthly_note),
+        ("yearly", yearly_note),
+        ("someday", someday_note),
+    ]
+
+
+def print_current_notes():
+    notes = resolve_current_notes()
+    for label, note_path in notes:
+        try:
+            content = note_path.read_text(encoding="utf-8")
+        except OSError:
+            content = ""
+        try:
+            relative = note_path.relative_to(notebook_dir)
+        except ValueError:
+            relative = note_path
+        print(f"--- {label}: {relative} ---")
+        if content:
+            end = "" if content.endswith("\n") else "\n"
+            print(content, end=end)
+        print()
 
 
 def append_to_note(note_path: Path, content: str) -> bool:
@@ -214,6 +284,12 @@ def main():
         help="Perform a case-sensitive search",
     )
     parser.add_argument("--sync", action="store_true", help="Sync notebook changes with remote")
+    parser.add_argument("--tasks", action="store_true", help="List uncompleted tasks across notes")
+    parser.add_argument(
+        "--current",
+        action="store_true",
+        help="Print the contents of the current daily, monthly, yearly, and someday notes",
+    )
     args = parser.parse_args()
 
     append_text = args.append
@@ -231,6 +307,14 @@ def main():
         append_text = sys.stdin.read()
 
     opened = False
+
+    if args.tasks:
+        list_uncompleted_tasks(notebook_dir)
+        opened = True
+
+    if args.current:
+        print_current_notes()
+        opened = True
 
     if args.daily:
         today = date.today()
