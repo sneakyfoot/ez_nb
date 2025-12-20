@@ -1,5 +1,5 @@
 {
-  description = "uv-managed Python template (dev + nix build), with NixOS GPU /run/opengl-driver shim";
+  description = "Simple markdown notebook tool";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -9,89 +9,92 @@
 
   let
 
-    system = "x86_64-linux";
-    pkgs = import nixpkgs { inherit system; };
+    systems = [ "x86_64-linux" "aarch64-darwin" ];
+    forAllSystems = nixpkgs.lib.genAttrs systems;
 
     pythonSpec = "3.14";
 
     appName = "notebook";
     entrypoint = "notebook";
 
-    toolchain =
-      [ pkgs.uv pkgs.ruff pkgs.cacert pkgs.makeWrapper pkgs.ty pkgs.zlib pkgs.openssl pkgs.stdenv.cc ];
+    mkForSystem = system:
+      let
+        pkgs = import nixpkgs { inherit system; };
+        toolchain =
+          [ pkgs.uv pkgs.ruff pkgs.cacert pkgs.makeWrapper pkgs.ty pkgs.zlib pkgs.openssl pkgs.stdenv.cc ];
+        uvBundle = pkgs.stdenvNoCC.mkDerivation {
+          pname = "${appName}-uv-bundle";
+          version = "0.1.1";
+          src = self;
 
-    # GPU shim (NixOS)
-    gpuLibPath = "/run/opengl-driver/lib:/run/opengl-driver-32/lib";
+          # Build with: --option sandbox relaxed
+          __noChroot = true;
+          preferLocalBuild = true;
+          allowSubstitutes = false;
+          dontFixup = true;
 
-    uvBundle = pkgs.stdenvNoCC.mkDerivation {
-      pname = "${appName}-uv-bundle";
-      version = "0.1.1";
-      src = self;
+          nativeBuildInputs = toolchain;
 
-      # Build with: --option sandbox relaxed
-      __noChroot = true;
-      preferLocalBuild = true;
-      allowSubstitutes = false;
-      dontFixup = true;
+          installPhase = ''
+            set -euo pipefail
 
-      nativeBuildInputs = toolchain;
+            export HOME="$TMPDIR/home"
+            mkdir -p "$HOME"
 
-      installPhase = ''
-        set -euo pipefail
+            export UV_CACHE_DIR="$TMPDIR/uv-cache"
 
-        export HOME="$TMPDIR/home"
-        mkdir -p "$HOME"
+            export UV_MANAGED_PYTHON=1
 
-        export UV_CACHE_DIR="$TMPDIR/uv-cache"
+            export UV_PYTHON_INSTALL_DIR="$out/python"
+            export UV_PROJECT_ENVIRONMENT="$out/venv"
 
-        export UV_MANAGED_PYTHON=1
+            uv python install ${pythonSpec}
+            uv venv --python ${pythonSpec}
+            uv sync --frozen --no-dev --no-editable
 
-        export UV_PYTHON_INSTALL_DIR="$out/python"
-        export UV_PROJECT_ENVIRONMENT="$out/venv"
+            mkdir -p "$out/bin"
 
-        uv python install ${pythonSpec}
-        uv venv --python ${pythonSpec}
-        uv sync --frozen --no-dev --no-editable
+            # Main wrapper.
+            if [ -x "$out/venv/bin/${entrypoint}" ]; then
+              makeWrapper "$out/venv/bin/${entrypoint}" "$out/bin/${entrypoint}" \
+                --set PYTHONNOUSERSITE 1
+            else
+              echo "ERROR: expected entrypoint missing: $out/venv/bin/${entrypoint}" >&2
+              echo "Hint: set entrypoint=... to match your [project.scripts] name." >&2
+              exit 1
+            fi
+          '';
+        };
+      in
+      {
+        devShells.default = pkgs.mkShell {
+          packages = toolchain;
+          env = {
+            UV_MANAGED_PYTHON = "1";
+            # UV_PYTHON_INSTALL_DIR = ".uv-python";
+            UV_PROJECT_ENVIRONMENT = ".venv";
+          };
+          shellHook = ''
+            source $UV_PROJECT_ENVIRONMENT/bin/activate
+          '';
+        };
 
-        mkdir -p "$out/bin"
+        packages = {
+          ${appName} = uvBundle;
+          default = uvBundle;
+        };
 
-        # Main wrapper with GPU shim.
-        if [ -x "$out/venv/bin/${entrypoint}" ]; then
-          makeWrapper "$out/venv/bin/${entrypoint}" "$out/bin/${entrypoint}" \
-            --set PYTHONNOUSERSITE 1 \
-            --prefix LD_LIBRARY_PATH : "${gpuLibPath}"
-        else
-          echo "ERROR: expected entrypoint missing: $out/venv/bin/${entrypoint}" >&2
-          echo "Hint: set entrypoint=... to match your [project.scripts] name." >&2
-          exit 1
-        fi
-      '';
-    };
+        apps.default = {
+          type = "app";
+          program = "${uvBundle}/bin/${entrypoint}";
+        };
+      };
 
   in {
 
-    devShells.${system}.default = pkgs.mkShell {
-      packages = toolchain;
-      env = {
-        UV_MANAGED_PYTHON = "1";
-        # UV_PYTHON_INSTALL_DIR = ".uv-python";
-        UV_PROJECT_ENVIRONMENT = ".venv";
-      };
-      shellHook = ''
-        export LD_LIBRARY_PATH="${gpuLibPath}:''${LD_LIBRARY_PATH:-}"
-        source $UV_PROJECT_ENVIRONMENT/bin/activate
-      '';
-    };
-
-    packages.${system} = {
-      ${appName} = uvBundle;
-      default = uvBundle;
-    };
-
-    apps.${system}.default = {
-      type = "app";
-      program = "${uvBundle}/bin/${entrypoint}";
-    };
+    devShells = forAllSystems (system: (mkForSystem system).devShells);
+    packages = forAllSystems (system: (mkForSystem system).packages);
+    apps = forAllSystems (system: (mkForSystem system).apps);
 
   };
 }
