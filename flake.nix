@@ -37,7 +37,7 @@
           ];
           uvBundle = pkgs.stdenvNoCC.mkDerivation {
             pname = "${appName}-uv-bundle";
-            version = "0.1.1";
+            version = "0.1.2";
             src = self;
 
             # Build with: --option sandbox relaxed
