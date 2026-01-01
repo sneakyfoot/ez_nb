@@ -9,11 +9,11 @@
     { self, nixpkgs }:
 
     let
-
       systems = [
         "x86_64-linux"
         "aarch64-darwin"
       ];
+
       forAllSystems = nixpkgs.lib.genAttrs systems;
 
       pythonSpec = "3.14";
@@ -25,6 +25,7 @@
         system:
         let
           pkgs = import nixpkgs { inherit system; };
+
           toolchain = [
             pkgs.uv
             pkgs.ruff
@@ -35,6 +36,8 @@
             pkgs.openssl
             pkgs.stdenv.cc
           ];
+
+          # Heavy runtime bundle (python + venv). Do NOT install this into your profile.
           uvBundle = pkgs.stdenvNoCC.mkDerivation {
             pname = "${appName}-uv-bundle";
             version = "0.1.2";
@@ -54,7 +57,6 @@
               mkdir -p "$HOME"
 
               export UV_CACHE_DIR="$TMPDIR/uv-cache"
-
               export UV_MANAGED_PYTHON=1
 
               export UV_PYTHON_INSTALL_DIR="$out/python"
@@ -64,14 +66,36 @@
               uv venv --python ${pythonSpec}
               uv sync --frozen --no-dev --no-editable
 
+              # Optional: keep a runnable wrapper inside the bundle for testing
               mkdir -p "$out/bin"
-
-              # Main wrapper.
               if [ -x "$out/venv/bin/${entrypoint}" ]; then
                 makeWrapper "$out/venv/bin/${entrypoint}" "$out/bin/${entrypoint}" \
                   --set PYTHONNOUSERSITE 1
               else
                 echo "ERROR: expected entrypoint missing: $out/venv/bin/${entrypoint}" >&2
+                echo "Hint: set entrypoint=... to match your [project.scripts] name." >&2
+                exit 1
+              fi
+            '';
+          };
+
+          # Thin CLI package: installs only bin/notebook and points at uvBundle's venv.
+          cli = pkgs.stdenvNoCC.mkDerivation {
+            pname = appName;
+            version = "0.1.2";
+
+            dontUnpack = true;
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+
+            installPhase = ''
+              set -euo pipefail
+              mkdir -p "$out/bin"
+
+              if [ -x "${uvBundle}/venv/bin/${entrypoint}" ]; then
+                makeWrapper "${uvBundle}/venv/bin/${entrypoint}" "$out/bin/${entrypoint}" \
+                  --set PYTHONNOUSERSITE 1
+              else
+                echo "ERROR: expected entrypoint missing: ${uvBundle}/venv/bin/${entrypoint}" >&2
                 echo "Hint: set entrypoint=... to match your [project.scripts] name." >&2
                 exit 1
               fi
@@ -83,7 +107,6 @@
             packages = toolchain;
             env = {
               UV_MANAGED_PYTHON = "1";
-              # UV_PYTHON_INSTALL_DIR = ".uv-python";
               UV_PROJECT_ENVIRONMENT = ".venv";
             };
             shellHook = ''
@@ -92,22 +115,26 @@
           };
 
           packages = {
-            ${appName} = uvBundle;
-            default = uvBundle;
+            uv-bundle = uvBundle;
+            ${appName} = cli;
+            default = cli;
           };
 
-          apps.default = {
-            type = "app";
-            program = "${uvBundle}/bin/${entrypoint}";
+          apps = {
+            ${appName} = {
+              type = "app";
+              program = "${cli}/bin/${entrypoint}";
+            };
+            default = {
+              type = "app";
+              program = "${cli}/bin/${entrypoint}";
+            };
           };
         };
-
     in
     {
-
       devShells = forAllSystems (system: (mkForSystem system).devShells);
       packages = forAllSystems (system: (mkForSystem system).packages);
       apps = forAllSystems (system: (mkForSystem system).apps);
-
     };
 }
