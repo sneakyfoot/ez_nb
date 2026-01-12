@@ -9,19 +9,24 @@
     { self, nixpkgs }:
 
     let
+      lib = nixpkgs.lib;
+
       systems = [
         "x86_64-linux"
         "aarch64-darwin"
       ];
 
-      forAllSystems = nixpkgs.lib.genAttrs systems;
+      forAllSystems = f: lib.genAttrs systems (system: f system);
 
-      pythonSpec = "3.14";
+      pythonSpec = "3.14.2";
 
       appName = "notebook";
       entrypoint = "notebook";
 
-      mkForSystem =
+    in
+    {
+
+      devShells = forAllSystems (
         system:
         let
           pkgs = import nixpkgs { inherit system; };
@@ -37,13 +42,45 @@
             pkgs.stdenv.cc
           ];
 
-          # Heavy runtime bundle (python + venv). Do NOT install this into your profile.
+        in
+        {
+          default = pkgs.mkShell {
+            packages = toolchain;
+
+            env = {
+              UV_MANAGED_PYTHON = "1";
+              UV_PROJECT_ENVIRONMENT = ".venv";
+            };
+
+            shellHook = ''
+              set -euo pipefail
+            '';
+          };
+        }
+      );
+
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+
+          toolchain = [
+            pkgs.uv
+            pkgs.ruff
+            pkgs.cacert
+            pkgs.makeWrapper
+            pkgs.ty
+            pkgs.zlib
+            pkgs.openssl
+            pkgs.stdenv.cc
+          ];
+
           uvBundle = pkgs.stdenvNoCC.mkDerivation {
             pname = "${appName}-uv-bundle";
-            version = "0.1.2";
-            src = self;
+            version = "0.1.1";
+            src = ./.;
 
-            # Build with: --option sandbox relaxed
+            # Requires relaxed sandbox / network
             __noChroot = true;
             allowSubstitutes = true;
             dontFixup = true;
@@ -52,6 +89,7 @@
 
             installPhase = ''
               set -euo pipefail
+
 
               export HOME="$TMPDIR/home"
               mkdir -p "$HOME"
@@ -65,24 +103,12 @@
               uv python install ${pythonSpec}
               uv venv --python ${pythonSpec}
               uv sync --frozen --no-dev --no-editable
-
-              # Optional: keep a runnable wrapper inside the bundle for testing
-              mkdir -p "$out/bin"
-              if [ -x "$out/venv/bin/${entrypoint}" ]; then
-                makeWrapper "$out/venv/bin/${entrypoint}" "$out/bin/${entrypoint}" \
-                  --set PYTHONNOUSERSITE 1
-              else
-                echo "ERROR: expected entrypoint missing: $out/venv/bin/${entrypoint}" >&2
-                echo "Hint: set entrypoint=... to match your [project.scripts] name." >&2
-                exit 1
-              fi
             '';
           };
 
-          # Thin CLI package: installs only bin/notebook and points at uvBundle's venv.
           cli = pkgs.stdenvNoCC.mkDerivation {
             pname = appName;
-            version = "0.1.2";
+            version = "0.1.1";
 
             dontUnpack = true;
             nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -91,50 +117,37 @@
               set -euo pipefail
               mkdir -p "$out/bin"
 
-              if [ -x "${uvBundle}/venv/bin/${entrypoint}" ]; then
-                makeWrapper "${uvBundle}/venv/bin/${entrypoint}" "$out/bin/${entrypoint}" \
-                  --set PYTHONNOUSERSITE 1
-              else
-                echo "ERROR: expected entrypoint missing: ${uvBundle}/venv/bin/${entrypoint}" >&2
-                echo "Hint: set entrypoint=... to match your [project.scripts] name." >&2
-                exit 1
-              fi
+
+              makeWrapper "${uvBundle}/venv/bin/${entrypoint}" "$out/bin/${entrypoint}"
             '';
           };
+
         in
         {
-          devShells.default = pkgs.mkShell {
-            packages = toolchain;
-            env = {
-              UV_MANAGED_PYTHON = "1";
-              UV_PROJECT_ENVIRONMENT = ".venv";
-            };
-            shellHook = ''
-              source $UV_PROJECT_ENVIRONMENT/bin/activate
-            '';
+          uv-bundle = uvBundle;
+          ${appName} = cli;
+
+          default = cli;
+        }
+      );
+
+      apps = forAllSystems (
+        system:
+        let
+          cli = self.packages.${system}.${appName};
+        in
+        {
+          ${appName} = {
+            type = "app";
+            program = "${cli}/bin/${entrypoint}";
           };
 
-          packages = {
-            uv-bundle = uvBundle;
-            ${appName} = cli;
-            default = cli;
+          default = {
+            type = "app";
+            program = "${cli}/bin/${entrypoint}";
           };
+        }
+      );
 
-          apps = {
-            ${appName} = {
-              type = "app";
-              program = "${cli}/bin/${entrypoint}";
-            };
-            default = {
-              type = "app";
-              program = "${cli}/bin/${entrypoint}";
-            };
-          };
-        };
-    in
-    {
-      devShells = forAllSystems (system: (mkForSystem system).devShells);
-      packages = forAllSystems (system: (mkForSystem system).packages);
-      apps = forAllSystems (system: (mkForSystem system).apps);
     };
 }
