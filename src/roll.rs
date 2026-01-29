@@ -13,11 +13,32 @@ pub fn roll_note(root: PathBuf, note_type: NoteType) -> anyhow::Result<()> {
     let latest_note = utils::resolve_most_recent_note(root.clone(), note_type)?
         .ok_or_else(|| anyhow::anyhow!("Could not resolve latest note"))?;
     let header = utils::construct_header(note_type);
-    println!(
-        "this would roll {} into {}\n with the header: {}",
-        latest_note.display(),
-        current_note.display(),
-        header
-    );
+    let current_content = utils::read_note(&latest_note)?;
+    let new_content = construct_new_note(&current_content, &header);
+    utils::write_note(&current_note, &new_content)?;
     Ok(())
+}
+
+fn construct_new_note(prev: &str, header: &str) -> String {
+    let mut out = String::new();
+    out.push_str(header.trim_end());
+    out.push('\n');
+    let mut skipped_old_header = false;
+    for line in prev.lines() {
+        if !skipped_old_header {
+            if line.trim().is_empty() {
+                continue;
+            } else {
+                skipped_old_header = true;
+                continue;
+            }
+        }
+        let is_done = line.trim_start().starts_with("- [x]");
+        if is_done {
+            continue;
+        }
+        out.push_str(line);
+        out.push('\n');
+    }
+    out
 }

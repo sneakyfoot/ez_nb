@@ -2,7 +2,16 @@ use crate::cli::NoteType;
 use anyhow::Context;
 use chrono::{Datelike, Local};
 use std::ffi::OsStr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+pub fn read_note(path: &Path) -> anyhow::Result<String> {
+    Ok(std::fs::read_to_string(path)?)
+}
+
+pub fn write_note(path: &Path, contents: &str) -> anyhow::Result<()> {
+    std::fs::write(path, contents)?;
+    Ok(())
+}
 
 pub fn construct_header(note_type: NoteType) -> String {
     let today = Local::now().date_naive();

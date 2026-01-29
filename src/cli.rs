@@ -20,6 +20,7 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Cmd {
+    /// Edit the current note from a catagory. Auto rolls if missing. Defaults to daily.
     Edit(EditArgs),
 }
 
