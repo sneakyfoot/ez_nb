@@ -2,6 +2,8 @@ use crate::cli::NoteType;
 use anyhow::Context;
 use chrono::{Datelike, Local};
 use std::ffi::OsStr;
+use std::fs;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 pub fn read_note(path: &Path) -> anyhow::Result<String> {
@@ -10,6 +12,49 @@ pub fn read_note(path: &Path) -> anyhow::Result<String> {
 
 pub fn write_note(path: &Path, contents: &str) -> anyhow::Result<()> {
     std::fs::write(path, contents)?;
+    Ok(())
+}
+
+pub fn confirm(prompt: &str) -> io::Result<bool> {
+    loop {
+        eprintln!("{prompt} [y/n]: ");
+        io::stderr().flush()?;
+
+        let mut s = String::new();
+        io::stdin().read_line(&mut s)?;
+
+        match s.trim().to_ascii_lowercase().as_str() {
+            "y" => return Ok(true),
+            "n" => return Ok(false),
+            _ => eprintln!("Type y or n"),
+        }
+    }
+}
+
+pub fn init_notebook(root: &Path) -> anyhow::Result<()> {
+    let conrimation_message = format!(
+        "This will create a new notebook at {}, confirm?",
+        root.display()
+    );
+    if confirm(&conrimation_message)? {
+        if root.exists() {
+            anyhow::bail!("Notebook root already exists, bailing");
+        }
+        fs::create_dir_all(root)
+            .with_context(|| format!("Failed to create notebook root: {}", root.display()))?;
+        for name in ["daily", "monthly", "yearly"] {
+            let dir = root.join(name);
+            fs::create_dir_all(&dir)
+                .with_context(|| format!("Failed to create folder: {}", dir.display()))?;
+            let placeholder = dir.join("placeholder");
+            fs::write(&placeholder, "placeholder".to_string()).with_context(|| {
+                format!("Failed to create placeholder: {}", placeholder.display())
+            })?;
+        }
+        let someday_note = root.join("someday.md");
+        fs::write(&someday_note, "## Someday")
+            .with_context(|| format!("Failed to write someday.md"))?;
+    }
     Ok(())
 }
 

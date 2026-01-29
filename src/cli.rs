@@ -1,11 +1,16 @@
 use crate::edit;
 use crate::sync;
+use crate::utils;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "nb", version, about = "Notebook CLI")]
+#[command(
+    name = "nb",
+    version,
+    about = "Basic notebook cli that manages a set of rolling notes at different intervals.\nExample: for the daily note, a note is created under notebook/daily/yy-mm-dd.md, on the next day any content that isn't a completed markdown task item \"- [x]\" will be coppied to a new note for the current date."
+)]
 pub struct Cli {
     /// Notebook root directory
     #[arg(long)]
@@ -23,7 +28,10 @@ pub struct Cli {
 pub enum Cmd {
     /// Edit the current note from a catagory. Auto rolls if missing. Defaults to daily.
     Edit(EditArgs),
+    /// Syncs the notebook via git. Make sure your notebook is a git repository with a remote for sync to work.
     Sync,
+    /// Generates the notebook structure when notebook root is a non existant directory.
+    Init,
 }
 
 #[derive(Args, Debug, Default)]
@@ -48,6 +56,7 @@ pub fn run() -> anyhow::Result<()> {
     match cmd {
         Cmd::Edit(args) => edit::run(args, cfg.clone())?,
         Cmd::Sync => sync::run(cfg.clone())?,
+        Cmd::Init => utils::init_notebook(&cfg.root)?,
     }
     Ok(())
 }
