@@ -35,7 +35,7 @@
         in
         {
           default = rust-package;
-          rp = rust-package;
+          nb = rust-package;
         }
       );
 
@@ -48,7 +48,7 @@
         {
           default = {
             type = "app";
-            program = "${rust-package}/bin/rp";
+            program = "${rust-package}/bin/nb";
           };
         }
       );
