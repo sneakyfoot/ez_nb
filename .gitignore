@@ -4,6 +4,7 @@ __pycache__/
 result
 result/
 /result/*
+.cache
 
 
 # Added by cargo
