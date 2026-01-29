@@ -1,153 +1,76 @@
 {
-  description = "Simple markdown notebook tool";
+  description = "Rust dev template";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
   };
 
   outputs =
     { self, nixpkgs }:
-
     let
-      lib = nixpkgs.lib;
-
       systems = [
         "x86_64-linux"
         "aarch64-darwin"
       ];
+      forSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
+      mkPkgs = system: import nixpkgs { inherit system; };
 
-      forAllSystems = f: lib.genAttrs systems (system: f system);
-
-      pythonSpec = "3.14.2";
-
-      appName = "notebook";
-      entrypoint = "notebook";
-
+      mkRustPackage =
+        pkgs:
+        pkgs.rustPlatform.buildRustPackage {
+          pname = "nb";
+          version = "0.1.0";
+          src = pkgs.lib.cleanSource ./.;
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+          };
+        };
     in
     {
-
-      devShells = forAllSystems (
+      packages = forSystems (
         system:
         let
-          pkgs = import nixpkgs { inherit system; };
+          pkgs = mkPkgs system;
+          rust-package = mkRustPackage pkgs;
+        in
+        {
+          default = rust-package;
+          rp = rust-package;
+        }
+      );
 
-          toolchain = [
-            pkgs.uv
-            pkgs.ruff
-            pkgs.cacert
-            pkgs.makeWrapper
-            pkgs.ty
-            pkgs.zlib
-            pkgs.openssl
-            pkgs.stdenv.cc
-          ];
+      apps = forSystems (
+        system:
+        let
+          pkgs = mkPkgs system;
+          rust-package = mkRustPackage pkgs;
+        in
+        {
+          default = {
+            type = "app";
+            program = "${rust-package}/bin/rp";
+          };
+        }
+      );
 
+      devShells = forSystems (
+        system:
+        let
+          pkgs = mkPkgs system;
+          # rust-package = mkRustPackage pkgs;
         in
         {
           default = pkgs.mkShell {
-            packages = toolchain;
-
-            env = {
-              UV_MANAGED_PYTHON = "1";
-              UV_PROJECT_ENVIRONMENT = ".venv";
-            };
-
-            shellHook = ''
-              set -euo pipefail
-            '';
+            packages = with pkgs; [
+              rustc
+              cargo
+              rust-analyzer
+              rustfmt
+              pkg-config
+            ];
+            # inputsFrom = [ rust-package ];
           };
         }
       );
-
-      packages = forAllSystems (
-        system:
-        let
-          pkgs = import nixpkgs { inherit system; };
-
-          toolchain = [
-            pkgs.uv
-            pkgs.ruff
-            pkgs.cacert
-            pkgs.makeWrapper
-            pkgs.ty
-            pkgs.zlib
-            pkgs.openssl
-            pkgs.stdenv.cc
-          ];
-
-          uvBundle = pkgs.stdenvNoCC.mkDerivation {
-            pname = "${appName}-uv-bundle";
-            version = "0.1.1";
-            src = ./.;
-
-            # Requires relaxed sandbox / network
-            __noChroot = true;
-            allowSubstitutes = true;
-            dontFixup = true;
-
-            nativeBuildInputs = toolchain;
-
-            installPhase = ''
-              set -euo pipefail
-
-
-              export HOME="$TMPDIR/home"
-              mkdir -p "$HOME"
-
-              export UV_CACHE_DIR="$TMPDIR/uv-cache"
-              export UV_MANAGED_PYTHON=1
-
-              export UV_PYTHON_INSTALL_DIR="$out/python"
-              export UV_PROJECT_ENVIRONMENT="$out/venv"
-
-              uv python install ${pythonSpec}
-              uv venv --python ${pythonSpec}
-              uv sync --frozen --no-dev --no-editable
-            '';
-          };
-
-          cli = pkgs.stdenvNoCC.mkDerivation {
-            pname = appName;
-            version = "0.1.1";
-
-            dontUnpack = true;
-            nativeBuildInputs = [ pkgs.makeWrapper ];
-
-            installPhase = ''
-              set -euo pipefail
-              mkdir -p "$out/bin"
-
-
-              makeWrapper "${uvBundle}/venv/bin/${entrypoint}" "$out/bin/${entrypoint}"
-            '';
-          };
-
-        in
-        {
-          uv-bundle = uvBundle;
-          ${appName} = cli;
-
-          default = cli;
-        }
-      );
-
-      apps = forAllSystems (
-        system:
-        let
-          cli = self.packages.${system}.${appName};
-        in
-        {
-          ${appName} = {
-            type = "app";
-            program = "${cli}/bin/${entrypoint}";
-          };
-
-          default = {
-            type = "app";
-            program = "${cli}/bin/${entrypoint}";
-          };
-        }
-      );
-
     };
 }

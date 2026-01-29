@@ -4,3 +4,8 @@ __pycache__/
 result
 result/
 /result/*
+
+
+# Added by cargo
+
+/target
