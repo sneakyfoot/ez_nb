@@ -32,11 +32,11 @@ pub fn confirm(prompt: &str) -> io::Result<bool> {
 }
 
 pub fn init_notebook(root: &Path) -> anyhow::Result<()> {
-    let conrimation_message = format!(
+    let confirmation_message = format!(
         "This will create a new notebook at {}, confirm?",
         root.display()
     );
-    if confirm(&conrimation_message)? {
+    if confirm(&confirmation_message)? {
         if root.exists() {
             anyhow::bail!("Notebook root already exists, bailing");
         }
@@ -75,7 +75,7 @@ pub fn construct_header(note_type: NoteType) -> String {
     header
 }
 
-/// Figures out what the current note for each catagory would be on today.
+/// Figures out what the current note for each category would be on today.
 /// This can return a filename that does not exist yet
 pub fn resolve_current_note(root: PathBuf, note_type: NoteType) -> PathBuf {
     let today = Local::now().date_naive();

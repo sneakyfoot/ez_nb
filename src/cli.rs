@@ -9,7 +9,7 @@ use std::path::PathBuf;
 #[command(
     name = "nb",
     version,
-    about = "Basic notebook cli that manages a set of rolling notes at different intervals.\nExample: for the daily note, a note is created under notebook/daily/yy-mm-dd.md, on the next day any content that isn't a completed markdown task item \"- [x]\" will be coppied to a new note for the current date."
+    about = "Basic notebook CLI that manages a set of rolling notes at different intervals.\nExample: for the daily note, a note is created under notebook/daily/yy-mm-dd.md, on the next day any content that isn't a completed markdown task item \"- [x]\" will be copied to a new note for the current date."
 )]
 pub struct Cli {
     /// Notebook root directory
@@ -26,11 +26,11 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Cmd {
-    /// Edit the current note from a catagory. Auto rolls if missing. Defaults to daily.
+    /// Edit the current note from a category. Auto-rolls if missing. Defaults to daily.
     Edit(EditArgs),
     /// Syncs the notebook via git. Make sure your notebook is a git repository with a remote for sync to work.
     Sync,
-    /// Generates the notebook structure when notebook root is a non existant directory.
+    /// Generates the notebook structure when notebook root is a nonexistent directory.
     Init,
 }
 
