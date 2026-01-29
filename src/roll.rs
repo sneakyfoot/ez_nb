@@ -10,10 +10,11 @@ pub fn roll_note(root: PathBuf, note_type: NoteType) -> anyhow::Result<()> {
             current_note.display()
         );
     }
-    let latest_note = utils::resolve_most_recent_note(root.clone(), note_type)?
-        .ok_or_else(|| anyhow::anyhow!("Could not resolve latest note"))?;
     let header = utils::construct_header(note_type);
-    let current_content = utils::read_note(&latest_note)?;
+    let current_content = match utils::resolve_most_recent_note(root, note_type)? {
+        Some(latest_note) => utils::read_note(&latest_note)?,
+        None => String::new(),
+    };
     let new_content = construct_new_note(&current_content, &header);
     utils::write_note(&current_note, &new_content)?;
     Ok(())
