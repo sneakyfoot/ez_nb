@@ -1,3 +1,5 @@
+use crate::edit;
+
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
@@ -23,6 +25,7 @@ pub enum Cmd {
 
 #[derive(Args, Debug, Default)]
 pub struct EditArgs {
+    #[arg(value_enum, default_value_t)]
     pub note_type: NoteType,
 }
 
@@ -30,7 +33,6 @@ pub struct EditArgs {
 pub enum NoteType {
     #[default]
     Daily,
-    Weekly,
     Monthly,
     Yearly,
     Someday,
@@ -38,15 +40,10 @@ pub enum NoteType {
 
 pub fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    let cfg = crate::config::Config::default();
     let cmd = cli.cmd.unwrap_or_else(|| Cmd::Edit(EditArgs::default()));
     match cmd {
-        Cmd::Edit(args) => match args.note_type {
-            NoteType::Daily => println!("edit daily"),
-            NoteType::Weekly => println!("edit weekly"),
-            NoteType::Monthly => println!("edit monthly"),
-            NoteType::Yearly => println!("edit yearly"),
-            NoteType::Someday => println!("edit someday"),
-        },
+        Cmd::Edit(args) => edit::run(args, cfg.clone())?,
     }
     Ok(())
 }
