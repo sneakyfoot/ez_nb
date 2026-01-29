@@ -1,4 +1,5 @@
 use crate::edit;
+use crate::sync;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
@@ -22,6 +23,7 @@ pub struct Cli {
 pub enum Cmd {
     /// Edit the current note from a catagory. Auto rolls if missing. Defaults to daily.
     Edit(EditArgs),
+    Sync,
 }
 
 #[derive(Args, Debug, Default)]
@@ -45,6 +47,7 @@ pub fn run() -> anyhow::Result<()> {
     let cmd = cli.cmd.unwrap_or_else(|| Cmd::Edit(EditArgs::default()));
     match cmd {
         Cmd::Edit(args) => edit::run(args, cfg.clone())?,
+        Cmd::Sync => sync::run(cfg.clone())?,
     }
     Ok(())
 }

@@ -2,6 +2,7 @@ mod cli;
 mod config;
 mod edit;
 mod roll;
+mod sync;
 mod utils;
 
 fn main() {

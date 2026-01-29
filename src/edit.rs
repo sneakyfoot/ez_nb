@@ -24,7 +24,7 @@ fn edit_note(note: PathBuf, cfg: Config) -> anyhow::Result<()> {
         .stderr(Stdio::inherit())
         .status()?;
     if !status.success() {
-        anyhow::bail!("nvim exited with status: {status}");
+        anyhow::bail!("Editor exited with status: {status}");
     }
     Ok(())
 }
