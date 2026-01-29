@@ -1,42 +1,42 @@
 notebook
 =====
 
-`notebook` is a lightweight command line helper for managing a rolling Markdown
-notebook with daily, monthly, yearly, and someday pages. It can open notes in
-your preferred editor, append entries from the terminal, list unfinished tasks,
-search using `rg`, and keep the notebook repository in sync.
+`nb` is basic command line tool for managing a rolling Markdown notebook with daily, monthly, yearly, and someday pages. 
+Notes are stored in their corisponding subdirectory (except someday.md, which lives at root), dated like yy-mm-dd.md. 
+When a note falls out of date, `nb` "rolls" the note to the next date. 
+
+Rolling does this:
+- Creates a new note with todays correct filename
+- Constructs a new header for the correct date 
+- Coppies the remaining context to the new note.
+- Strips all completed markdown tasks annotated by "- [x]"
+
+Notes are synced via git. 
+After running `nb init` to build the folder structure, do a standard git repo init with remote origin. 
 
 Installation
 ------------
-
-You can install the CLI locally with [uv](https://github.com/astral-sh/uv):
-
-```bash
-uv tool install --from . notebook
-```
-
-After installation the `notebook` command will be available on your PATH. To update
-the tool after making local changes, rerun the same command.
+With nix profile:
+`nix profile add github:sneakyfoot/ez_nb#nb`
 
 Usage
 -----
 
 ```bash
-notebook --help
+nb --help
+nb edit --help
+nb sync --help
 ```
 
 Key commands:
 
-- `notebook --daily` – open or append to today's note.
-- `notebook --monthly --append` – pipe text directly into the monthly note.
-- `notebook --search "keyword"` – search all Markdown notes using ripgrep.
-- `notebook --tasks` – list incomplete checklist items across the notebook.
-- `notebook --sync` – commit and push changes in the notebook git repository.
+- `nb`                                          - Defaults to `nb edit daily`.
+- `nb edit`                                     - Defaults to `nb edit daily`.
+- `nb edit [daily, monthly, yearly, someday]`   - Opens the corrisponding note in $EDITOR.
+- `nb sync`                                     - Syncs to and from remote git repository.
 
 Configuration
 -------------
-
-- Set `EZ_NB_ROOT` to override the default notebook location (`~/notebook`).
-- Use `--root PATH` for one-off runs pointing at a different notebook folder.
-- Set `$EDITOR` or pass `--editor` to control which editor is used when opening
-  notes (defaults to `nvim`).
+- Currently defaults to `~/notebook` for notebook root.
+- Uses $EDITOR for editor to use with edit command. 
+- If $EDITOR is unset, defaults to `nvim`
