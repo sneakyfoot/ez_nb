@@ -14,7 +14,7 @@ pub fn run(cfg: Config) -> anyhow::Result<()> {
     }
     let changes = check_git_status(&root).context("Git status failed")?;
     if changes.trim().is_empty() {
-        println!("No changes, skipping sync");
+        println!("No local changes, skipping push");
         return Ok(());
     }
     println!("Changed files:\n{changes}");
