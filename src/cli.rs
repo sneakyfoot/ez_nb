@@ -1,4 +1,5 @@
 use crate::edit;
+use crate::search;
 use crate::sync;
 use crate::utils;
 
@@ -32,6 +33,8 @@ pub enum Cmd {
     Sync,
     /// Generates the notebook structure when notebook root is a nonexistent directory.
     Init,
+    /// Searches notebook with rg, make sure you have ripgrep installed.
+    Search { query: String },
 }
 
 #[derive(Args, Debug, Default)]
@@ -57,6 +60,7 @@ pub fn run() -> anyhow::Result<()> {
         Cmd::Edit(args) => edit::run(args, cfg.clone())?,
         Cmd::Sync => sync::run(cfg.clone())?,
         Cmd::Init => utils::init_notebook(&cfg.root)?,
+        Cmd::Search { query } => search::run(cfg.clone(), &query)?,
     }
     Ok(())
 }

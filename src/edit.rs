@@ -1,4 +1,4 @@
-use crate::cli::{EditArgs, NoteType};
+use crate::cli::EditArgs;
 use crate::config::Config;
 use crate::roll;
 use crate::utils;

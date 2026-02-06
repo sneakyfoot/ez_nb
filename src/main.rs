@@ -2,6 +2,7 @@ mod cli;
 mod config;
 mod edit;
 mod roll;
+mod search;
 mod sync;
 mod utils;
 
