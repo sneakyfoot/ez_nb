@@ -21,7 +21,7 @@ fn search(root: PathBuf, query: &str) -> anyhow::Result<String> {
         .output()?;
     if !out.status.success() {
         let err = String::from_utf8_lossy(&out.stderr);
-        bail!("rg failed: {err}");
+        bail!("Search returned no results. {err}");
     }
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
