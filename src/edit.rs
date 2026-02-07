@@ -35,7 +35,7 @@ fn edit_note(note: PathBuf, cfg: Config) -> anyhow::Result<()> {
 pub fn append_to_note(args: AppendArgs, cfg: Config) -> anyhow::Result<()> {
     let root = cfg.root.clone();
     let note = utils::resolve_current_note(root.clone(), args.note_type);
-    let content = args.content;
+    let content = args.content.join(" ");
     if !note.exists() {
         roll::roll_note(root, args.note_type)?;
     }

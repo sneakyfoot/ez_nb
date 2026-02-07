@@ -62,7 +62,8 @@ pub struct AppendArgs {
     pub note_type: NoteType,
 
     /// The line to append
-    pub content: String,
+    #[arg(value_name = "CONTENT", trailing_var_arg = true)]
+    pub content: Vec<String>,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, Default)]
