@@ -1,4 +1,5 @@
 use crate::edit;
+use crate::list;
 use crate::search;
 use crate::sync;
 use crate::utils;
@@ -35,12 +36,22 @@ pub enum Cmd {
     Init,
     /// Searches notebook with rg, make sure you have ripgrep installed.
     Search { query: String },
+    /// Prints note content to stdout. Takes a note type and option for content or tasks.
+    List(ListArgs),
 }
 
 #[derive(Args, Debug, Default)]
 pub struct EditArgs {
     #[arg(value_enum, default_value_t)]
     pub note_type: NoteType,
+}
+
+#[derive(Args, Debug, Default)]
+pub struct ListArgs {
+    #[arg(value_enum, default_value_t)]
+    pub note_type: NoteType,
+    #[arg(value_enum, default_value_t)]
+    pub list_type: ListType,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, Default)]
@@ -52,6 +63,15 @@ pub enum NoteType {
     Someday,
 }
 
+#[derive(ValueEnum, Clone, Copy, Debug, Default)]
+pub enum ListType {
+    #[default]
+    /// Lists all content from the selected note type to stdout
+    Contents,
+    /// Lists all uncomplete tasks from selected note type to stdout
+    Tasks,
+}
+
 pub fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let cfg = crate::config::Config::default();
@@ -61,6 +81,7 @@ pub fn run() -> anyhow::Result<()> {
         Cmd::Sync => sync::run(cfg.clone())?,
         Cmd::Init => utils::init_notebook(&cfg.root)?,
         Cmd::Search { query } => search::run(cfg.clone(), &query)?,
+        Cmd::List(args) => list::run(args, cfg.clone())?,
     }
     Ok(())
 }
