@@ -30,6 +30,8 @@ pub struct Cli {
 pub enum Cmd {
     /// Edit the current note from a category. Auto-rolls if missing. Defaults to daily.
     Edit(EditArgs),
+    /// Appends a line to the selected note type.
+    Append(AppendArgs),
     /// Syncs the notebook via git. Make sure your notebook is a git repository with a remote for sync to work.
     Sync,
     /// Generates the notebook structure when notebook root is a nonexistent directory.
@@ -52,6 +54,15 @@ pub struct ListArgs {
     pub note_type: NoteType,
     #[arg(value_enum, default_value_t)]
     pub list_type: ListType,
+}
+
+#[derive(Args, Debug)]
+pub struct AppendArgs {
+    #[arg(value_enum)]
+    pub note_type: NoteType,
+
+    /// The line to append
+    pub content: String,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, Default)]
@@ -78,6 +89,7 @@ pub fn run() -> anyhow::Result<()> {
     let cmd = cli.cmd.unwrap_or_else(|| Cmd::Edit(EditArgs::default()));
     match cmd {
         Cmd::Edit(args) => edit::run(args, cfg.clone())?,
+        Cmd::Append(args) => edit::append_to_note(args, cfg.clone())?,
         Cmd::Sync => sync::run(cfg.clone())?,
         Cmd::Init => utils::init_notebook(&cfg.root)?,
         Cmd::Search { query } => search::run(cfg.clone(), &query)?,
