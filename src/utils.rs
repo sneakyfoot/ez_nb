@@ -1,6 +1,7 @@
 use crate::cli::NoteType;
 use anyhow::Context;
-use chrono::{Datelike, Local};
+use chrono::{Datelike, Utc};
+use chrono_tz::America::Los_Angeles;
 use std::ffi::OsStr;
 use std::fs;
 use std::io::{self, Write};
@@ -31,6 +32,10 @@ pub fn confirm(prompt: &str) -> io::Result<bool> {
     }
 }
 
+pub fn pacific_today() -> chrono::NaiveDate {
+    Utc::now().with_timezone(&Los_Angeles).date_naive()
+}
+
 pub fn init_notebook(root: &Path) -> anyhow::Result<()> {
     let confirmation_message = format!(
         "This will create a new notebook at {}, confirm?",
@@ -59,7 +64,7 @@ pub fn init_notebook(root: &Path) -> anyhow::Result<()> {
 }
 
 pub fn construct_header(note_type: NoteType) -> String {
-    let today = Local::now().date_naive();
+    let today = pacific_today();
     let header = match note_type {
         NoteType::Daily => format!(
             "## {} {:02}-{:02}-{:02}",
@@ -78,7 +83,7 @@ pub fn construct_header(note_type: NoteType) -> String {
 /// Figures out what the current note for each category would be on today.
 /// This can return a filename that does not exist yet
 pub fn resolve_current_note(root: PathBuf, note_type: NoteType) -> PathBuf {
-    let today = Local::now().date_naive();
+    let today = pacific_today();
     match note_type {
         NoteType::Daily => {
             let folder = root.join("daily");

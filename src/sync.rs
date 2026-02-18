@@ -1,6 +1,7 @@
 use crate::config::Config;
+use crate::utils::pacific_today;
 use anyhow::{Context, anyhow};
-use chrono::{Datelike, Local};
+use chrono::Datelike;
 use std::path::Path;
 use std::process::Command;
 
@@ -84,7 +85,7 @@ fn git<const N: usize>(root: &Path, args: [&str; N]) -> anyhow::Result<()> {
 }
 
 fn build_commit_message() -> String {
-    let today = Local::now().date_naive();
+    let today = pacific_today();
     format!(
         "Sync {:02}-{:02}-{:02}",
         today.year() % 100,
