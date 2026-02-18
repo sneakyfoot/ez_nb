@@ -33,6 +33,8 @@ Key commands:
 - `nb`                                          - Defaults to `nb edit daily`.
 - `nb edit`                                     - Defaults to `nb edit daily`.
 - `nb edit [daily, monthly, yearly, someday]`   - Opens the corresponding note in $EDITOR.
+- `nb list [daily, monthly, yearly, someday] [contents, tasks]` - Prints the most recent note with line numbers.
+- `nb remove [daily, monthly, yearly, someday] <line...>`       - Removes 1-based line numbers; supports commas and ranges (e.g. 1,3,5-7). With no lines, it's a no-op.
 - `nb sync`                                     - Syncs to and from remote git repository.
 
 Configuration

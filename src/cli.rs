@@ -1,5 +1,6 @@
 use crate::edit;
 use crate::list;
+use crate::remove;
 use crate::search;
 use crate::sync;
 use crate::utils;
@@ -38,8 +39,10 @@ pub enum Cmd {
     Init,
     /// Searches notebook with rg, make sure you have ripgrep installed.
     Search { query: String },
-    /// Prints note content to stdout. Takes a note type and option for content or tasks.
+    /// Prints note content to stdout with line numbers. Takes a note type and option for content or tasks.
     List(ListArgs),
+    /// Removes line(s) from the most recent note. Defaults to daily if no note type is provided.
+    Remove(RemoveArgs),
 }
 
 #[derive(Args, Debug, Default)]
@@ -64,6 +67,17 @@ pub struct AppendArgs {
     /// The line to append
     #[arg(value_name = "CONTENT", trailing_var_arg = true)]
     pub content: Vec<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct RemoveArgs {
+    /// Note type to remove from.
+    #[arg(value_enum)]
+    pub note_type: NoteType,
+
+    /// Line numbers (1-based). Accepts commas and ranges (e.g. 1,3,5-7).
+    #[arg(value_name = "LINES", num_args = 0.., trailing_var_arg = true)]
+    pub lines: Vec<String>,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, Default)]
@@ -95,6 +109,7 @@ pub fn run() -> anyhow::Result<()> {
         Cmd::Init => utils::init_notebook(&cfg.root)?,
         Cmd::Search { query } => search::run(cfg.clone(), &query)?,
         Cmd::List(args) => list::run(args, cfg.clone())?,
+        Cmd::Remove(args) => remove::run(args, cfg.clone())?,
     }
     Ok(())
 }

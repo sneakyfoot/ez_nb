@@ -2,6 +2,7 @@ mod cli;
 mod config;
 mod edit;
 mod list;
+mod remove;
 mod roll;
 mod search;
 mod sync;
