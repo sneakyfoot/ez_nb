@@ -1,6 +1,9 @@
+use crate::check;
 use crate::edit;
+use crate::insert;
 use crate::list;
 use crate::remove;
+use crate::replace;
 use crate::search;
 use crate::sync;
 use crate::utils;
@@ -43,6 +46,12 @@ pub enum Cmd {
     List(ListArgs),
     /// Removes line(s) from the most recent note. Defaults to daily if no note type is provided.
     Remove(RemoveArgs),
+    /// Replaces a single line in-place. LINE is 1-based.
+    Replace(ReplaceArgs),
+    /// Inserts a new line after the given line number. LINE=0 inserts at the top.
+    Insert(InsertArgs),
+    /// Toggles a markdown task checkbox on the given line.
+    Check(CheckArgs),
 }
 
 #[derive(Args, Debug, Default)]
@@ -67,6 +76,44 @@ pub struct AppendArgs {
     /// The line to append
     #[arg(value_name = "CONTENT", trailing_var_arg = true)]
     pub content: Vec<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct ReplaceArgs {
+    /// Note type to replace in.
+    #[arg(value_enum)]
+    pub note_type: NoteType,
+
+    /// Line number to replace (1-based).
+    pub line: usize,
+
+    /// The replacement content
+    #[arg(value_name = "CONTENT", trailing_var_arg = true)]
+    pub content: Vec<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct InsertArgs {
+    /// Note type to insert into.
+    #[arg(value_enum)]
+    pub note_type: NoteType,
+
+    /// Insert after this line number (0 = insert at top).
+    pub line: usize,
+
+    /// The content to insert
+    #[arg(value_name = "CONTENT", trailing_var_arg = true)]
+    pub content: Vec<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct CheckArgs {
+    /// Note type to toggle checkbox in.
+    #[arg(value_enum)]
+    pub note_type: NoteType,
+
+    /// Line number to toggle (1-based).
+    pub line: usize,
 }
 
 #[derive(Args, Debug)]
@@ -110,6 +157,9 @@ pub fn run() -> anyhow::Result<()> {
         Cmd::Search { query } => search::run(cfg.clone(), &query)?,
         Cmd::List(args) => list::run(args, cfg.clone())?,
         Cmd::Remove(args) => remove::run(args, cfg.clone())?,
+        Cmd::Replace(args) => replace::run(args, cfg.clone())?,
+        Cmd::Insert(args) => insert::run(args, cfg.clone())?,
+        Cmd::Check(args) => check::run(args, cfg.clone())?,
     }
     Ok(())
 }

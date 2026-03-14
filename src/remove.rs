@@ -1,7 +1,7 @@
 use crate::cli::{NoteType, RemoveArgs};
 use crate::config::Config;
 use crate::utils;
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use std::collections::HashSet;
 
 pub fn run(args: RemoveArgs, cfg: Config) -> anyhow::Result<()> {
