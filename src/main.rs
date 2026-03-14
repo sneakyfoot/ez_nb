@@ -1,8 +1,11 @@
+mod check;
 mod cli;
 mod config;
 mod edit;
+mod insert;
 mod list;
 mod remove;
+mod replace;
 mod roll;
 mod search;
 mod sync;
