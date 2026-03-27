@@ -1,6 +1,11 @@
-use crate::cli::NoteType;
+use crate::cli::{NoteType, RollArgs};
+use crate::config::Config;
 use crate::utils;
 use std::path::PathBuf;
+
+pub fn run(args: RollArgs, cfg: Config) -> anyhow::Result<()> {
+    roll_note(cfg.root, args.note_type)
+}
 
 pub fn roll_note(root: PathBuf, note_type: NoteType) -> anyhow::Result<()> {
     let current_note = utils::resolve_current_note(root.clone(), note_type);
