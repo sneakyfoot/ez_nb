@@ -4,6 +4,7 @@ use crate::insert;
 use crate::list;
 use crate::remove;
 use crate::replace;
+use crate::roll;
 use crate::search;
 use crate::sync;
 use crate::utils;
@@ -52,10 +53,18 @@ pub enum Cmd {
     Insert(InsertArgs),
     /// Toggles a markdown task checkbox on the given line.
     Check(CheckArgs),
+    /// Manually rolls the note for a given type without opening an editor. Defaults to daily.
+    Roll(RollArgs),
 }
 
 #[derive(Args, Debug, Default)]
 pub struct EditArgs {
+    #[arg(value_enum, default_value_t)]
+    pub note_type: NoteType,
+}
+
+#[derive(Args, Debug, Default)]
+pub struct RollArgs {
     #[arg(value_enum, default_value_t)]
     pub note_type: NoteType,
 }
@@ -160,6 +169,7 @@ pub fn run() -> anyhow::Result<()> {
         Cmd::Replace(args) => replace::run(args, cfg.clone())?,
         Cmd::Insert(args) => insert::run(args, cfg.clone())?,
         Cmd::Check(args) => check::run(args, cfg.clone())?,
+        Cmd::Roll(args) => roll::run(args, cfg.clone())?,
     }
     Ok(())
 }
